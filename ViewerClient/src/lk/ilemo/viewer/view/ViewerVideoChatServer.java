@@ -1,0 +1,459 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package lk.ilemo.viewer.view;
+
+import com.github.sarxos.webcam.Webcam;
+import java.awt.AWTException;
+import java.awt.Graphics;
+import java.awt.TrayIcon;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.SourceDataLine;
+import javax.sound.sampled.TargetDataLine;
+import lk.ilemo.viewer.observer.ObsaverImpl;
+import lk.ilemo.viewer.service.custom.Broker;
+import lk.ilemo.viewer.service.other.ViewerFileWriter;
+import static lk.ilemo.viewer.view.ViewerVideoChatController.getAudioFormat;
+import lk.ilemo.viewer.view.other.SysTray;
+import lk.ilemo.viewer.view.utils.PlayThread;
+import lk.ilemo.viewer.view.utils.RecordThread;
+
+/**
+ *
+ * @author Chamindu_Appuhamy
+ */
+public class ViewerVideoChatServer extends javax.swing.JFrame {
+
+    private int lastX, lastY;
+    private BufferedImage pImg = null;
+    private BufferedImage myImg = null;
+    public int ThreadSignal = 0;
+    private Broker broker;
+    /**
+     * ************Client Utils*******************************
+     */
+    public int port_Srrver = 8888;
+    public String add_Server = "192.168.8.100";
+    TargetDataLine audio_in2;
+    RecordThread r = new RecordThread();//This Object is Used to send Voice Data to the connected Server(Partner) 
+    /**
+     * *************Server Utiles*****************************
+     */
+    public int port = 8888;
+    public SourceDataLine audio_in;
+    PlayThread p = new PlayThread();
+
+    public static AudioFormat getAudioFormat() {
+        float sampleRate = 8000.0f;
+        int sampleSizeInBit = 16;
+        int channel = 2;
+        boolean signed = true;
+        boolean bigEndian = false;
+        return new AudioFormat(sampleRate, sampleSizeInBit, channel, signed, bigEndian);
+    }
+
+    private int obj = 0;
+    private ObsaverImpl impl;
+    public int CLOSE_SIGNAL = 0;
+    private String caller;
+
+    /**
+     * Creates new form ViewerVideoChatServer
+     */
+    public ViewerVideoChatServer(Broker broker, int obj, ObsaverImpl impl) {
+        initComponents();
+
+        this.broker = broker;
+        this.impl = impl;
+        this.obj = obj;
+        if (obj == 1) {
+            String ipAddress = broker.getControllerClientDto().getIPAddress();
+            String[] split = ipAddress.split("/");
+            this.add_Server = split[1];
+            caller = broker.getControllerClientDto().getUserComputerName();
+        } else if (obj == 0) {
+            this.add_Server = broker.getServerClientDto().getIPAddress();
+            caller = broker.getServerClientDto().getUserComputerName();
+//            String[] split = ipAddress.split("/");
+//            this.add_Server=split[1];
+        }
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+        //setUndecorated(true);
+    }
+
+    public void connectedControllerCam(byte[] imgBites) {
+        new Runnable() {
+            @Override
+            public void run() {
+                if (imgBites != null) {
+                    try {
+                        //Connected to the Controller Cam and getImages and set It to the Partner Panel
+                        pImg = javax.imageio.ImageIO.read(new ByteArrayInputStream(imgBites));
+                        partnerPnl.repaint();
+                    } catch (IOException ex) {
+                        Logger.getLogger(ViewerVideoChatServer.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+            }
+        }.run();
+    }
+
+    public void getMyImage() {
+        Webcam webCam = Webcam.getDefault();
+        webCam.open();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    //get My Images and set it to the myPanl by Using Thread including infinit while loop
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+                    myImg = webCam.getImage();
+                    myPnl.repaint();
+                    //System.out.println("get MyImage");
+                }
+                //webCam.close();
+            }
+        }).start();
+    }
+
+    /**
+     * This method is called from within the constructor to initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is always
+     * regenerated by the Form Editor.
+     */
+    @SuppressWarnings("unchecked")
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+
+        jPanel1 = new javax.swing.JPanel();
+        jPanel2 = new javax.swing.JPanel();
+        jLabel1 = new javax.swing.JLabel();
+        jLabel2 = new javax.swing.JLabel();
+        shutDown = new javax.swing.JLabel();
+        partnerPnl = new javax.swing.JPanel(){
+            public void paintComponent(Graphics g){
+                super.paintComponent(g);
+                if(pImg!=null){
+                    g.drawImage(pImg,0,0,partnerPnl.getWidth(),partnerPnl.getHeight(),null);
+                }
+            }
+        };
+        myPnl = new javax.swing.JPanel(){
+            public void paintComponent(Graphics g){
+                super.paintComponent(g);
+                if(myImg!=null){
+                    g.drawImage(myImg,0,0,myPnl.getWidth(),myPnl.getHeight(),null);
+                }
+            }
+        };
+
+        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            public void mouseDragged(java.awt.event.MouseEvent evt) {
+                formMouseDragged(evt);
+            }
+        });
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                formMousePressed(evt);
+            }
+        });
+
+        jPanel1.setBackground(new java.awt.Color(255, 255, 255));
+
+        jPanel2.setBackground(new java.awt.Color(0, 51, 255));
+        jPanel2.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            public void mouseDragged(java.awt.event.MouseEvent evt) {
+                jPanel2MouseDragged(evt);
+            }
+        });
+        jPanel2.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                jPanel2MousePressed(evt);
+            }
+        });
+
+        jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/lk/ilemo/viewer/view/icons/videoFram.png"))); // NOI18N
+
+        jLabel2.setFont(new java.awt.Font("Tahoma", 0, 24)); // NOI18N
+        jLabel2.setForeground(new java.awt.Color(255, 255, 255));
+        jLabel2.setText("Viewer Vchat");
+
+        shutDown.setIcon(new javax.swing.ImageIcon(getClass().getResource("/lk/ilemo/viewer/view/icons/no_vide0.png"))); // NOI18N
+        shutDown.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                shutDownMouseClicked(evt);
+            }
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                shutDownMousePressed(evt);
+            }
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                shutDownMouseReleased(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGap(30, 30, 30)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel2)
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 133, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 641, Short.MAX_VALUE)
+                        .addComponent(shutDown)
+                        .addGap(31, 31, 31))))
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 97, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(10, 10, 10)
+                        .addComponent(shutDown)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel2)
+                .addContainerGap(21, Short.MAX_VALUE))
+        );
+
+        partnerPnl.setBackground(new java.awt.Color(204, 204, 204));
+
+        javax.swing.GroupLayout myPnlLayout = new javax.swing.GroupLayout(myPnl);
+        myPnl.setLayout(myPnlLayout);
+        myPnlLayout.setHorizontalGroup(
+            myPnlLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 179, Short.MAX_VALUE)
+        );
+        myPnlLayout.setVerticalGroup(
+            myPnlLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 161, Short.MAX_VALUE)
+        );
+
+        javax.swing.GroupLayout partnerPnlLayout = new javax.swing.GroupLayout(partnerPnl);
+        partnerPnl.setLayout(partnerPnlLayout);
+        partnerPnlLayout.setHorizontalGroup(
+            partnerPnlLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(partnerPnlLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(myPnl, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        partnerPnlLayout.setVerticalGroup(
+            partnerPnlLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(partnerPnlLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(myPnl, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(416, Short.MAX_VALUE))
+        );
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(partnerPnl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(partnerPnl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
+        getContentPane().setLayout(layout);
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 885, Short.MAX_VALUE)
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 783, Short.MAX_VALUE)
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
+        pack();
+    }// </editor-fold>//GEN-END:initComponents
+
+    private void formMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMousePressed
+
+    }//GEN-LAST:event_formMousePressed
+
+    private void formMouseDragged(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseDragged
+        setLocation(evt.getXOnScreen() - lastX, evt.getYOnScreen() - lastY);
+    }//GEN-LAST:event_formMouseDragged
+
+    private void jPanel2MousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel2MousePressed
+        lastX = evt.getXOnScreen() - getX();
+        lastY = evt.getYOnScreen() - getY();
+    }//GEN-LAST:event_jPanel2MousePressed
+
+    private void jPanel2MouseDragged(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel2MouseDragged
+        setLocation(evt.getXOnScreen() - lastX, evt.getYOnScreen() - lastY);
+    }//GEN-LAST:event_jPanel2MouseDragged
+
+    private void shutDownMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_shutDownMousePressed
+        shutDown.setIcon(new javax.swing.ImageIcon(getClass().getResource("/lk/ilemo/viewer/view/icons/no_video_filled.png")));
+    }//GEN-LAST:event_shutDownMousePressed
+
+    private void shutDownMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_shutDownMouseReleased
+        shutDown.setIcon(new javax.swing.ImageIcon(getClass().getResource("/lk/ilemo/viewer/view/icons/no_vide0.png")));
+    }//GEN-LAST:event_shutDownMouseReleased
+
+    private void shutDownMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_shutDownMouseClicked
+        r.byte_buffer = new byte[0];
+        try {
+            ViewerFileWriter.callLoggerFileWriter("", caller, ViewerFileWriter.callType.ANSWERVIDEOCALL);
+        } catch (IOException ex) {
+            Logger.getLogger(ViewerVideoChatServer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        disposeMe();
+    }//GEN-LAST:event_shutDownMouseClicked
+
+    /**
+     * @param args the command line argument
+     */
+    public static void main(String args[]) {
+        /* Set the Nimbus look and feel */
+        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
+        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
+         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+         */
+        try {
+            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
+        } catch (ClassNotFoundException ex) {
+            java.util.logging.Logger.getLogger(ViewerVideoChatServer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } catch (InstantiationException ex) {
+            java.util.logging.Logger.getLogger(ViewerVideoChatServer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } catch (IllegalAccessException ex) {
+            java.util.logging.Logger.getLogger(ViewerVideoChatServer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+            java.util.logging.Logger.getLogger(ViewerVideoChatServer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        }
+        //</editor-fold>
+
+        /* Create and display the form */
+//        java.awt.EventQueue.invokeLater(new Runnable() {
+//            public void run() {
+//                new ViewerVideoChatServer().setVisible(true);
+//            }
+//        });
+    }
+
+    public void init_Audio() {
+        AudioFormat format = getAudioFormat();
+        DataLine.Info info_out = new DataLine.Info(SourceDataLine.class, format);
+        if (!AudioSystem.isLineSupported(info_out)) {
+            System.out.println("NOT SUPPORT....");
+            System.exit(0);
+        }
+        try {
+            audio_in = (SourceDataLine) AudioSystem.getLine(info_out);
+            audio_in.open();
+            audio_in.start();
+            p.VideoServer = this;
+            p.din = new DatagramSocket(port);
+            p.audio_out = audio_in;
+            p.Server_Voice = true;
+            p.start();
+        } catch (LineUnavailableException ex) {
+            Logger.getLogger(ViewerVideoChatServer.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SocketException ex) {
+            Logger.getLogger(ViewerVideoChatServer.class.getName()).log(Level.SEVERE, null, ex);
+//            ThreadSignal = 1;
+//            CLOSE_SIGNAL = 1;
+//            //Webcam.getDefault().close();
+//            p.Server_Voice = false;
+//            r.Client_Voice = false;
+            //this.dispose();
+        }
+    }
+
+    public void initAudio_Client() {
+        AudioFormat format = getAudioFormat();
+        DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+        if (!AudioSystem.isLineSupported(info)) {
+            System.out.println("NOT SUPPORT..");
+            System.exit(0);
+        }
+        try {
+            audio_in2 = (TargetDataLine) AudioSystem.getLine(info);
+            audio_in2.open();
+            audio_in2.start();
+
+            InetAddress inet = InetAddress.getByName(add_Server);
+            r.audio_in = audio_in2;
+            r.dout = new DatagramSocket();
+            r.server_ip = inet;
+            r.server_port = port_Srrver;
+            r.Client_Voice = true;
+            r.start();
+        } catch (LineUnavailableException ex) {
+            try {
+                SysTray.displayTray("Viewer Video Chat", "Microphone Not Connected..please solve this and run again..", "", TrayIcon.MessageType.ERROR);
+            } catch (AWTException ex1) {
+                Logger.getLogger(ViewerVideoChatServer.class.getName()).log(Level.SEVERE, null, ex1);
+            }
+        } catch (UnknownHostException ex) {
+            Logger.getLogger(ViewerVideoChatController.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SocketException ex) {
+            Logger.getLogger(ViewerVideoChatServer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public void disposeMe() {
+        ThreadSignal = 1;
+        CLOSE_SIGNAL = 1;
+        Webcam.getDefault().close();
+        p.Server_Voice = false;
+        r.Client_Voice = false;
+        //CLOSE_SIGNAL=0;
+        //this.dispose();
+        this.setVisible(false);
+    }
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel myPnl;
+    private javax.swing.JPanel partnerPnl;
+    private javax.swing.JLabel shutDown;
+    // End of variables declaration//GEN-END:variables
+}
